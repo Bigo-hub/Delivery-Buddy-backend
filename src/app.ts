@@ -26,7 +26,7 @@ export function createApp() {
   app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
   // Swagger UI
-  const openapiPath = path.join(__dirname, '..', 'openapi.yaml');
+  const openapiPath = path.join(__dirname, 'openapi.yaml');
   if (fs.existsSync(openapiPath)) {
     const openapiDoc = yaml.load(fs.readFileSync(openapiPath, 'utf8')) as object;
     app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
