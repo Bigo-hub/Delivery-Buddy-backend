@@ -2,6 +2,13 @@
 
 Courier-facing backend API for the Delivery Buddy delivery-driver mobile app.
 
+## 🚀 Live Deployment
+
+- **API Base URL**: https://delivery-buddy-api.onrender.com
+- **Swagger Documentation**: https://delivery-buddy-api.onrender.com/docs
+
+⚠️ **Note**: This is deployed on Render's free tier, which experiences cold starts. The first request may take 30-60 seconds to respond while the server wakes up.
+
 ## Tech Stack
 
 - **Runtime**: Node.js + Express + TypeScript
@@ -89,3 +96,28 @@ Route/ETA lookups use a three-tier cache:
 
 This ensures repeated polling from the live-tracking screen never re-hits the
 third-party maps API within the TTL window.
+
+## ✅ Test Results
+
+The test suite includes comprehensive integration tests covering all 19 endpoints. All 55 tests pass successfully:
+
+```
+ PASS  tests/auth.test.ts
+ PASS  tests/shift.test.ts
+ PASS  tests/courier.test.ts
+ PASS  tests/order.test.ts
+ PASS  tests/wallet.test.ts
+ PASS  tests/chat.test.ts
+
+Test Suites: 6 passed, 6 total
+Tests:       55 passed, 55 total
+Snapshots:   0 total
+Time:        ~10s (varies)
+```
+
+## 📚 Documentation
+
+- **OpenAPI/Swagger Docs**: https://delivery-buddy-api.onrender.com/docs
+- **Requirements Specification**: [docs/requirements-spec.md](docs/requirements-spec.md)
+- **Architecture Diagram**: [docs/architecture.md](docs/architecture.md)
+- **Entity Relationship Diagram (ERD)**: [docs/ERD.md](docs/ERD.md)
