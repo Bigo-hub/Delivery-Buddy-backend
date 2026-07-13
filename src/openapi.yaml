@@ -10,10 +10,10 @@ info:
   contact:
     name: Delivery Buddy Backend Team
 servers:
+  - url: https://delivery-buddy-api.onrender.com
+    description: Render Production
   - url: http://localhost:3000
     description: Local development
-  - url: https://api.deliverybuddy.example.com
-    description: Production
 
 components:
   securitySchemes:
