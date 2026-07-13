@@ -5,8 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.test' });
 
 export default async function () {
-  // Generate Prisma client and push schema to test database
-  execSync('npx prisma generate', { stdio: 'pipe' });
+  // Push schema to test database - skip prisma generate to avoid Windows file locking issues
   execSync('npx prisma db push --force-reset', {
     stdio: 'pipe',
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
