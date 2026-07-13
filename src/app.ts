@@ -25,6 +25,11 @@ export function createApp() {
   // Health check
   app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+  // Root route - redirect to docs
+  app.get('/', (_req, res) => {
+    res.redirect('/docs');
+  });
+
   // Swagger UI
   const projectRoot = path.resolve(__dirname, '..');
   const openapiPath = path.join(projectRoot, 'src', 'openapi.yaml');
