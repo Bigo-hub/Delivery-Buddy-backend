@@ -32,7 +32,6 @@ yarn-error.log*
 test-sequence.js
 test-sequence.ts
 generate-secret.js
-copy-files.js
 
 # OS
 .DS_Store
