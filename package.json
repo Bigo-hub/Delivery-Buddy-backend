@@ -5,7 +5,9 @@
   "main": "dist/app.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
+    "prebuild": "node copy-files.js",
     "build": "tsc",
+    "postbuild": "node copy-files.js",
     "start": "node dist/app.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

@@ -30,9 +30,12 @@ export function createApp() {
     res.redirect('/docs');
   });
 
-  // Swagger UI
-  const projectRoot = path.resolve(__dirname, '..');
-  const openapiPath = path.join(projectRoot, 'src', 'openapi.yaml');
+  // Swagger UI - works both in dev (src/) and production (dist/)
+  let openapiPath = path.join(__dirname, 'openapi.yaml');
+  if (!fs.existsSync(openapiPath)) {
+    // Fallback for dev environment
+    openapiPath = path.join(__dirname, '..', 'src', 'openapi.yaml');
+  }
   if (fs.existsSync(openapiPath)) {
     const openapiDoc = yaml.load(fs.readFileSync(openapiPath, 'utf8')) as object;
     app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
