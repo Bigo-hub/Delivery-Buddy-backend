@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Courier {
+  id                    String       @id @default(cuid())
+  workId                String       @unique
+  name                  String
+  email                 String       @unique
+  passwordHash          String
+  avatarUrl             String?
+  team                  String?
+  level                 Int          @default(1)
+  rate                  Float        @default(0)
+  transportationType    String       @default("bicycle")
+  vehicleNumber         String?
+  locationSettings      String?
+  notificationSettings  String?
+  billingMethod         String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  shifts                Shift[]
+  transactions          Transaction[]
+  withdrawals           WalletWithdrawal[]
+  orders                Order[]
+}
+
+model Shift {
+  id                  String   @id @default(cuid())
+  courierId           String
+  startedAt           DateTime @default(now())
+  endedAt             DateTime?
+  status              String   @default("active")
+  totalEarned         Float    @default(0)
+  totalTips           Float    @default(0)
+  deliveriesCompleted Int      @default(0)
+
+  courier             Courier  @relation(fields: [courierId], references: [id])
+  orders              Order[]
+
+  @@index([courierId, status])
+}
+
+model Order {
+  id                  String   @id @default(cuid())
+  orderCode           String   @unique
+  status              String   @default("assigned")
+  pickupAddress       String
+  destinationAddress  String
+  customerName        String
+  customerPhone       String
+  itemsJson           String
+  totalAmount         Float
+  paymentMethod       String
+  courierEarning      Float    @default(0)
+  tip                 Float    @default(0)
+  etaMinutes          Int?
+  distanceRemainingKm Float?
+  shiftId             String?
+  courierId           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  shift               Shift?   @relation(fields: [shiftId], references: [id])
+  courier             Courier? @relation(fields: [courierId], references: [id])
+  messages            Message[]
+
+  @@index([shiftId])
+  @@index([courierId, status])
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  courierId       String
+  type            String
+  amount          Float
+  relatedOrderId  String?
+  createdAt       DateTime @default(now())
+
+  courier         Courier  @relation(fields: [courierId], references: [id])
+
+  @@index([courierId])
+}
+
+model WalletWithdrawal {
+  id        String   @id @default(cuid())
+  courierId String
+  amount    Float
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  courier   Courier  @relation(fields: [courierId], references: [id])
+
+  @@index([courierId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  orderId    String
+  senderType String
+  text       String
+  seen       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  order      Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+model RouteCache {
+  key              String   @id
+  distanceKm       Float
+  etaMinutes       Int
+  polyline         String
+  cachedAt         DateTime @default(now())
+  expiresAt        DateTime
+}

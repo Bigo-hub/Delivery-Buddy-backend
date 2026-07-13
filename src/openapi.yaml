@@ -1,0 +1,585 @@
+openapi: 3.0.3
+info:
+  title: Delivery Buddy API
+  version: 1.0.0
+  description: |
+    Courier-facing backend API for the Delivery Buddy delivery-driver app.
+    Covers auth, onboarding/profile, shifts, orders/deliveries, wallet, and chat.
+    All protected endpoints require a `Authorization: Bearer <token>` header
+    obtained from `/auth/login` or `/auth/signup`.
+  contact:
+    name: Delivery Buddy Backend Team
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.deliverybuddy.example.com
+    description: Production
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        details: { type: object }
+    Courier:
+      type: object
+      properties:
+        id: { type: string }
+        workId: { type: string, example: "#AF15697" }
+        name: { type: string, example: "John Doe" }
+        email: { type: string, format: email }
+        avatarUrl: { type: string, nullable: true }
+        team: { type: string, nullable: true }
+        level: { type: integer, example: 3 }
+        rate: { type: number, example: 25 }
+        transportationType: { type: string, enum: [bicycle, car, truck] }
+        vehicleNumber: { type: string, nullable: true }
+        locationSettings: { type: string, nullable: true }
+        notificationSettings: { type: string, nullable: true }
+        billingMethod: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    Shift:
+      type: object
+      properties:
+        id: { type: string }
+        courierId: { type: string }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [active, ended] }
+        totalEarned: { type: number, example: 0 }
+        totalTips: { type: number, example: 0 }
+        deliveriesCompleted: { type: integer, example: 0 }
+    OrderItem:
+      type: object
+      properties:
+        name: { type: string }
+        price: { type: number }
+        notes: { type: string, nullable: true }
+    Order:
+      type: object
+      properties:
+        id: { type: string }
+        orderCode: { type: string, example: "#403-540" }
+        status: { type: string, enum: [assigned, in_transit, at_door, delivered, cancelled] }
+        pickupAddress: { type: string }
+        destinationAddress: { type: string }
+        customerName: { type: string }
+        customerPhone: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OrderItem' }
+        totalAmount: { type: number }
+        paymentMethod: { type: string, enum: [credit_card, cash, debit_card, wallet] }
+        courierEarning: { type: number }
+        tip: { type: number }
+        etaMinutes: { type: integer, nullable: true }
+        distanceRemainingKm: { type: number, nullable: true }
+        shiftId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Transaction:
+      type: object
+      properties:
+        id: { type: string }
+        courierId: { type: string }
+        type: { type: string, enum: [earning, tip, withdrawal] }
+        amount: { type: number }
+        relatedOrderId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    WalletWithdrawal:
+      type: object
+      properties:
+        id: { type: string }
+        courierId: { type: string }
+        amount: { type: number }
+        status: { type: string, enum: [pending, completed, failed] }
+        createdAt: { type: string, format: date-time }
+    Message:
+      type: object
+      properties:
+        id: { type: string }
+        orderId: { type: string }
+        senderType: { type: string, enum: [courier, customer] }
+        text: { type: string }
+        seen: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    RouteInfo:
+      type: object
+      properties:
+        distanceKm: { type: number }
+        etaMinutes: { type: integer }
+        polyline: { type: string }
+        fromCache: { type: boolean }
+        cachedAt: { type: string, format: date-time, nullable: true }
+    WalletSummary:
+      type: object
+      properties:
+        balance: { type: number }
+        tips: { type: number }
+        rate: { type: number }
+        level: { type: integer }
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/signup:
+    post:
+      summary: Register a new courier
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, workId, name, transportationType]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+                workId: { type: string, example: "#AF15697" }
+                name: { type: string }
+                team: { type: string }
+                transportationType: { type: string, enum: [bicycle, car, truck] }
+                vehicleNumber: { type: string }
+            example:
+              email: "john@deliverybuddy.com"
+              password: "secret123"
+              workId: "#AF15697"
+              name: "John Doe"
+              team: "Team A"
+              transportationType: "car"
+              vehicleNumber: "ABC-123"
+      responses:
+        "201":
+          description: Courier created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  courier: { $ref: '#/components/schemas/Courier' }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/login:
+    post:
+      summary: Log in a courier
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+            example:
+              email: "john@deliverybuddy.com"
+              password: "secret123"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  courier: { $ref: '#/components/schemas/Courier' }
+        "401": { description: Invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/logout:
+    post:
+      summary: Log out (stateless — client discards token)
+      security: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+
+  /couriers/me:
+    get:
+      summary: Get the authenticated courier's profile
+      responses:
+        "200":
+          description: Courier profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courier: { $ref: '#/components/schemas/Courier' }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /couriers/me/profile:
+    put:
+      summary: Update onboarding / profile fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workId: { type: string }
+                name: { type: string }
+                team: { type: string }
+                transportationType: { type: string, enum: [bicycle, car, truck] }
+                vehicleNumber: { type: string }
+                avatarUrl: { type: string, format: uri }
+            example:
+              name: "John D."
+              transportationType: "car"
+              vehicleNumber: "XYZ-999"
+      responses:
+        "200":
+          description: Updated courier
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courier: { $ref: '#/components/schemas/Courier' }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "409": { description: workId already taken, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /couriers/me/settings:
+    patch:
+      summary: Update notification, location, and billing settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                locationSettings: { type: string }
+                notificationSettings: { type: string }
+                billingMethod: { type: string }
+            example:
+              notificationSettings: "push_enabled"
+              billingMethod: "weekly_bank_transfer"
+      responses:
+        "200":
+          description: Updated courier
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courier: { $ref: '#/components/schemas/Courier' }
+
+  /shifts/start:
+    post:
+      summary: Start a new shift
+      responses:
+        "201":
+          description: Shift started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shift: { $ref: '#/components/schemas/Shift' }
+        "409": { description: A shift is already active, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /shifts/{id}/stop:
+    post:
+      summary: Stop an active shift
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Shift ended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shift: { $ref: '#/components/schemas/Shift' }
+        "404": { description: Shift not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "409": { description: Shift already ended, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /shifts/current:
+    get:
+      summary: Get the active shift (with its orders)
+      responses:
+        "200":
+          description: Active shift
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shift:
+                    allOf:
+                      - $ref: '#/components/schemas/Shift'
+                      - type: object
+                        properties:
+                          orders:
+                            type: array
+                            items: { $ref: '#/components/schemas/Order' }
+        "404": { description: No active shift, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /shifts:
+    get:
+      summary: Get shift history (paginated)
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: List of ended shifts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shifts:
+                    type: array
+                    items: { $ref: '#/components/schemas/Shift' }
+                  pagination:
+                    type: object
+
+  /orders:
+    get:
+      summary: List orders for the active shift (optionally filtered by status)
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [assigned, in_transit, at_door, delivered, cancelled] }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Orders list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items: { $ref: '#/components/schemas/Order' }
+                  activeShiftId: { type: string, nullable: true }
+                  pagination: { type: object }
+
+  /orders/{id}:
+    get:
+      summary: Get a single order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Order detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order: { $ref: '#/components/schemas/Order' }
+        "404": { description: Order not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /orders/{id}/status:
+    patch:
+      summary: Update order status (with transition validation)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [in_transit, at_door, delivered, cancelled] }
+            example:
+              status: "at_door"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order: { $ref: '#/components/schemas/Order' }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "404": { description: Order not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "409": { description: Invalid state transition, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /orders/{id}/route:
+    get:
+      summary: Get route/ETA (served from cache when fresh, otherwise fetched from provider)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Route info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  route: { $ref: '#/components/schemas/RouteInfo' }
+        "404": { description: Order not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /wallet:
+    get:
+      summary: Get wallet summary (balance, tips, rate, level)
+      responses:
+        "200":
+          description: Wallet summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallet: { $ref: '#/components/schemas/WalletSummary' }
+
+  /wallet/transactions:
+    get:
+      summary: List wallet transactions (paginated, optionally filtered by type)
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, enum: [earning, tip, withdrawal] }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Transactions list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items: { $ref: '#/components/schemas/Transaction' }
+                  pagination: { type: object }
+
+  /wallet/withdraw:
+    post:
+      summary: Withdraw funds from wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: { type: number, exclusiveMinimum: 0 }
+            example:
+              amount: 50.00
+      responses:
+        "201":
+          description: Withdrawal created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  withdrawal: { $ref: '#/components/schemas/WalletWithdrawal' }
+                  newBalance: { type: number }
+        "400": { description: Insufficient balance or invalid amount, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /orders/{id}/messages:
+    get:
+      summary: Get chat messages for an order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items: { $ref: '#/components/schemas/Message' }
+                  pagination: { type: object }
+        "404": { description: Order not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      summary: Send a message in an order chat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, maxLength: 2000 }
+                senderType: { type: string, enum: [courier, customer], default: courier }
+            example:
+              text: "I'm at the door!"
+              senderType: "courier"
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { $ref: '#/components/schemas/Message' }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "404": { description: Order not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
