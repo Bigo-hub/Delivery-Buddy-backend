@@ -1,6 +1,9 @@
 # Dependencies
 node_modules
 
+# Trae IDE
+.bolt
+
 # Environment variables
 .env
 .env.local
