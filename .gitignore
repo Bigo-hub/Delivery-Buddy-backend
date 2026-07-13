@@ -29,7 +29,10 @@ yarn-debug.log*
 yarn-error.log*
 
 # Test files
+test-sequence.js
 test-sequence.ts
+generate-secret.js
+copy-files.js
 
 # OS
 .DS_Store
